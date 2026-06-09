@@ -272,12 +272,8 @@ if (${ANDROID_ABI} STREQUAL "armeabi-v7a")
     target_sources(rlottie PRIVATE
             rlottie/src/vector/pixman/pixman-arm-neon-asm.S)
 elseif(${ANDROID_ABI} STREQUAL "arm64-v8a")
-    target_compile_options(rlottie PUBLIC
-            -fno-integrated-as)
-    target_compile_definitions(rlottie PUBLIC
-            USE_ARM_NEON __ARM64_NEON__)
-    target_sources(rlottie PRIVATE
-            rlottie/src/vector/pixman/pixman-arma64-neon-asm.S)
+    # NEON asm path disabled: pixman-arma64-neon-asm.S needs GNU as (.altmacro),
+    # which NDK r23+ no longer ships. rlottie falls back to its C implementation.
 endif()
 
 
