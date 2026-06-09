@@ -2,13 +2,19 @@ name: Build APK
 
 on:
   push:
-    branches: [ teamgram, master, main ]
+    branches: [ teamgram, teamgram2, master, main ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 180
     steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost /usr/local/lib/android/sdk/ndk
+          df -h /
+
       - uses: actions/checkout@v4
 
       - name: Set up JDK 17
@@ -20,11 +26,10 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Accept licenses
-        run: yes | sdkmanager --licenses
-
-      - name: Install NDK
-        run: sdkmanager "ndk;20.1.5948944" "cmake;3.10.2.4988404"
+      - name: Install NDK and CMake
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "ndk;26.3.11579264" "cmake;3.10.2.4988404"
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -35,13 +40,11 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
 
       - name: Build Debug APK
-        run: |
-          ./gradlew TMessagesProj:assembleDebug --no-daemon -x lint
-        env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/20.1.5948944
+        run: ./gradlew TMessagesProj_App:assembleAfatDebug --no-daemon -x lint
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: teamgram-debug-apk
-          path: TMessagesProj/build/outputs/apk/debug/*.apk
+          path: TMessagesProj_App/build/outputs/apk/afat/debug/*.apk
+          if-no-files-found: error
