@@ -5,7 +5,10 @@ set(CMAKE_C_FLAGS "-w -std=c11 -DANDROID -D_LARGEFILE_SOURCE=1 -g -fPIC")
 set(CMAKE_ASM_FLAGS "${CFLAGS} -x assembler-with-cpp -fPIC")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffunction-sections -fdata-sections")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections")
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,notext")
+# Prebuilt FFmpeg .a files contain non-PIC aarch64 asm; -Bsymbolic makes their
+# symbols non-preemptible so lld accepts the direct relocations, -z notext
+# allows any remaining text relocations.
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,notext -Wl,-Bsymbolic")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--exclude-libs,libtgvoip.a,libtgcalls.a,libtgcalls_tp.a,libtgnet.a,libflac.a,librlottie.a,libsqlite.a,
 ${CMAKE_HOME_DIRECTORY}/ffmpeg/${ANDROID_ABI}/libswscale.a,
 ${CMAKE_HOME_DIRECTORY}/ffmpeg/${ANDROID_ABI}/libavformat.a,
