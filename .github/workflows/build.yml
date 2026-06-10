@@ -27,7 +27,12 @@ jobs:
         run: |
           SDKMANAGER=$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager
           yes | $SDKMANAGER --licenses > /dev/null || true
-          $SDKMANAGER "ndk;26.3.11579264" "cmake;3.10.2.4988404"
+          # NDK r21 = the version teamgram-android 12.5.1 pins. Its lld links the
+          # prebuilt (non-PIC) arm64 FFmpeg without producing a TEXTREL .so, and it
+          # still ships GNU as (needed for rlottie's pixman NEON .S). Do NOT bump:
+          # NDK r23+ removed GNU as and its stricter lld forces -z notext, which
+          # bakes DT_TEXTREL into libtmessages.so → Android 16 refuses to load it.
+          $SDKMANAGER "ndk;21.4.7075529" "cmake;3.10.2.4988404"
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -39,6 +44,22 @@ jobs:
 
       - name: Build Debug APK
         run: ./gradlew TMessagesProj_App:assembleAfatDebug --no-daemon -x lint
+
+      - name: Verify libtmessages.so has NO text relocations
+        run: |
+          set -e
+          APK=$(ls TMessagesProj_App/build/outputs/apk/afat/debug/*.apk | head -1)
+          echo "Inspecting $APK"
+          unzip -o -q "$APK" 'lib/arm64-v8a/libtmessages*.so' -d /tmp/socheck
+          SO=$(ls /tmp/socheck/lib/arm64-v8a/libtmessages*.so | head -1)
+          READELF=$(ls $ANDROID_HOME/ndk/21.4.7075529/toolchains/llvm/prebuilt/*/bin/llvm-readelf | head -1)
+          echo "=== dynamic flags ==="
+          "$READELF" -d "$SO" | grep -iE 'TEXTREL|FLAGS' || true
+          if "$READELF" -d "$SO" | grep -qi 'TEXTREL'; then
+            echo "::error::libtmessages.so contains TEXTREL — it will NOT load on modern Android. Failing build."
+            exit 1
+          fi
+          echo "OK: no text relocations — library is loadable on modern Android."
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
